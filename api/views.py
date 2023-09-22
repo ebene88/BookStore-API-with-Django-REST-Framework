@@ -8,6 +8,18 @@ from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 
+# Permision author
+class BookUserWritePermission(BasePermission):
+    message = 'Editing posts is restricted to the author only.'
+
+    def has_object_permission(self, request, view, obj):
+
+        if request.method in SAFE_METHODS:
+            return True
+
+        return obj.author == request.user
+
+
 # Display Posts
 
 class BookList(generics.ListAPIView):
@@ -54,18 +66,18 @@ class CreateBook(APIView):
 
 
 class AdminBookDetail(generics.RetrieveAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [BookUserWritePermission]
     queryset = Book.objects.all()
     serializer_class = BookSerializer
 
 
-class EditBook(generics.UpdateAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+class EditBook(generics.UpdateAPIView, BookUserWritePermission):
+    permission_classes = [BookUserWritePermission]
     serializer_class = BookSerializer
     queryset = Book.objects.all()
 
 
 class DeleteBook(generics.RetrieveDestroyAPIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [BookUserWritePermission]
     serializer_class = BookSerializer
     queryset = Book.objects.all()
