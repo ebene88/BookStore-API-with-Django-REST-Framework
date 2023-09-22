@@ -1,49 +1,71 @@
-from rest_framework import generics
+from rest_framework import permissions, generics, status
 from book.models import Book
 from .serializers import BookSerializer
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated, BasePermission, IsAdminUser, DjangoModelPermissions
+from rest_framework import filters
+from rest_framework.views import APIView
+from django.shortcuts import get_object_or_404
+from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
+
+# Display Posts
+
+class BookList(generics.ListAPIView):
+
+    serializer_class = BookSerializer
+    queryset = Book.objects.all()
 
 
-class BookUserWritePermission(BasePermission):
-    message = 'Editing posts is restricted to the author only.'
+class BookDetail(generics.RetrieveAPIView):
 
-    def has_object_permission(self, request, view, obj):
-
-        if request.method in SAFE_METHODS:
-            return True
-
-        return obj.author == request.user
-
-
-class BookList(generics.ListCreateAPIView):
-    permission_classes = [IsAuthenticated]
-    queryset = Book.postobjects.all()
     serializer_class = BookSerializer
 
+    def get_object(self, queryset=None, **kwargs):
+        item = self.kwargs.get('pk')
+        return get_object_or_404(Book, slug=item)
 
-class BookDetail(generics.RetrieveUpdateDestroyAPIView, BookUserWritePermission):
-    permission_classes = [BookUserWritePermission]
+
+# Post Search
+
+class BookListDetailfilter(generics.ListAPIView):
+
+    queryset = Book.objects.all()
+    serializer_class = BookSerializer
+    filter_backends = [filters.SearchFilter]
+    # '^' Starts-with search.
+    # '=' Exact matches.
+    search_fields = ['^slug']
+
+
+# Post Admin
+
+class CreateBook(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, format=None):
+        print(request.data)
+        serializer = BookSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminBookDetail(generics.RetrieveAPIView):
+    permission_classes = [permissions.IsAuthenticated]
     queryset = Book.objects.all()
     serializer_class = BookSerializer
 
 
-""" Concrete View Classes
-#CreateAPIView
-Used for create-only endpoints.
-#ListAPIView
-Used for read-only endpoints to represent a collection of model instances.
-#RetrieveAPIView
-Used for read-only endpoints to represent a single model instance.
-#DestroyAPIView
-Used for delete-only endpoints for a single model instance.
-#UpdateAPIView
-Used for update-only endpoints for a single model instance.
-##ListCreateAPIView
-Used for read-write endpoints to represent a collection of model instances.
-RetrieveUpdateAPIView
-Used for read or update endpoints to represent a single model instance.
-#RetrieveDestroyAPIView
-Used for read or delete endpoints to represent a single model instance.
-#RetrieveUpdateDestroyAPIView
-Used for read-write-delete endpoints to represent a single model instance.
-"""
+class EditBook(generics.UpdateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = BookSerializer
+    queryset = Book.objects.all()
+
+
+class DeleteBook(generics.RetrieveDestroyAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = BookSerializer
+    queryset = Book.objects.all()

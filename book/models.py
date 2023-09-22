@@ -1,7 +1,10 @@
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 
+def upload_to(instance, filename):
+    return 'posts/{filename}'.format(filename=filename)
 
 class Category(models.Model):
     name = models.CharField(max_length=100)
@@ -25,7 +28,7 @@ class Book(models.Model):
         Category, on_delete=models.PROTECT, default=1)
     title = models.CharField(max_length=500, null=True)
     pdf = models.FileField()
-    image = models.ImageField()
+    image = models.ImageField(_("Image"), upload_to=upload_to, default='posts/default.jpg')
     price = models.IntegerField()
     content = models.TextField()
     slug = models.SlugField(max_length=250, unique_for_date='published')
